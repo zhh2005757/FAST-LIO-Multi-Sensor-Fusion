@@ -981,7 +981,7 @@ void h_share_model(state_ikfom &s, esekfom::dyn_share_datastruct<double> &ekfom_
 {
     if (opt_with_gnss){
         ekfom_data.z = MatrixXd::Zero(3, 1);
-        ekfom_data.h_x = MatrixXd::Zero(3, 33); //23
+        ekfom_data.h_x = MatrixXd::Zero(3, 33);
         ekfom_data.h.resize(3);
         ekfom_data.R = MatrixXd::Zero(3, 3);
         ekfom_data.h_v = MatrixXd::Identity(3, 3);
@@ -999,7 +999,10 @@ void h_share_model(state_ikfom &s, esekfom::dyn_share_datastruct<double> &ekfom_
 //        cout << "roll std " << sqrt(P(30,30)) << " pitch std" << sqrt(P(31, 31)) << " yaw std " << sqrt(P(32, 32)) << endl;
         // if yaw std converges do not estimate R_G_I
         if (sqrt(P(32, 32)) > 5e-5)
+        {
             ekfom_data.h_x.block<3, 3>(0, 30) = -(s.offset_R_G_I * crossmat); // d_dR_G_I
+            ROS_WARN("Estimate R_G_I !");
+        }
         // covariance
         ekfom_data.R(0, 0) = Measures.gnss.front()->pose.covariance[0];
         ekfom_data.R(1, 1) = Measures.gnss.front()->pose.covariance[7];
@@ -1008,7 +1011,7 @@ void h_share_model(state_ikfom &s, esekfom::dyn_share_datastruct<double> &ekfom_
     }
     if (opt_with_wheel){
         ekfom_data.z = MatrixXd::Zero(3, 1);
-        ekfom_data.h_x = MatrixXd::Zero(3, 33); //23
+        ekfom_data.h_x = MatrixXd::Zero(3, 33);
         ekfom_data.h.resize(3);
         ekfom_data.R = MatrixXd::Zero(3, 3);
         ekfom_data.h_v = MatrixXd::Identity(3, 3);
