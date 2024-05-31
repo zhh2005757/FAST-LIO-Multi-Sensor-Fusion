@@ -4,8 +4,9 @@ Fusing GNSS and wheel measurements based on FAST-LIO and IKFOM
 2. Fusing wheel measurement and support the estimation of wheel extrinsic parameters and wheel scale factor meanwhile.
 3. Tested on the Kaist Complex Urban Dataset.
 
-**Related paper**:
-Wheel fusion part refers to [Vehicle-Motion-Constraint-Based Visual-Inertial-Odometer Fusion With Online Extrinsic Calibration](https://ieeexplore.ieee.org/abstract/document/10272296). If you'd like to use this package for academic research please cite this paper and this package both, thanks.
+**Related paper and codes**:
+GNSS data handling part refers to [FAST_LIO_SAM](https://github.com/kahowang/FAST_LIO_SAM).
+Wheel fusion part refers to [Vehicle-Motion-Constraint-Based Visual-Inertial-Odometer Fusion With Online Extrinsic Calibration](https://ieeexplore.ieee.org/abstract/document/10272296). If you'd like to use this wheel fusion part of this package for academic research please cite this paper.
 
 ---
     @ARTICLE{10272296,
