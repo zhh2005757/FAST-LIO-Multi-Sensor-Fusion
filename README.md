@@ -7,6 +7,19 @@ Fusing GNSS and wheel measurements based on FAST-LIO and IKFOM
 **Related paper**:
 Wheel fusion part refers to [Vehicle-Motion-Constraint-Based Visual-Inertial-Odometer Fusion With Online Extrinsic Calibration](https://ieeexplore.ieee.org/abstract/document/10272296). If you'd like to use this package for academic research please cite this paper and this package both, thanks.
 
+---
+    @ARTICLE{10272296,
+      author={Zhao, Hang and Ji, Xinchun and Wei, Dongyan},
+      journal={IEEE Sensors Journal}, 
+      title={Vehicle-Motion-Constraint-Based Visual-Inertial-Odometer Fusion With Online Extrinsic Calibration}, 
+      year={2023},
+      volume={23},
+      number={22},
+      pages={27895-27908},
+      keywords={Odometers;Calibration;Wheels;Velocity measurement;Sensors;Cameras;Visualization;Extrinsic calibration;robust initialization;vehicle motion constraint;visual-inertial-odometer fusion},
+      doi={10.1109/JSEN.2023.3319345}}
+---
+
 ## FAST-LIO
 **FAST-LIO** (Fast LiDAR-Inertial Odometry) is a computationally efficient and robust LiDAR-inertial odometry package. It fuses LiDAR feature points with IMU data using a tightly-coupled iterated extended Kalman filter to allow robust navigation in fast-motion, noisy or cluttered environments where degeneration occurs. Our package address many key issues:
 1. Fast iterated Kalman filter for odometry optimization;
