@@ -3,7 +3,7 @@ common:
     lid_topic_right:  "/ns1/velodyne_points"
     imu_topic:  "/imu/data_raw"
     wheel_topic: "/odom"
-    gnss_topic:  "/vrs_gps_data"
+    gnss_topic:  "/gps/fix"
     use_wheel: true
     use_gnss: true
     time_sync_en: false         # ONLY turn on when external time synchronization is really not possible
@@ -39,25 +39,25 @@ mapping:
                   0, 1, 0,
                   0, 0, 1]
 
-    right_lidar_to_imu: [ -0.512695,    0.700506,   -0.496422,   -0.366669,
-                          -0.497416,   -0.713622,   -0.493276,   -0.411346,
-                          -0.6998, -0.00597189,    0.714313,     0.24785,
+    right_lidar_to_imu: [ -0.514521, 0.701075, -0.493723,   -0.263596,
+                          -0.492472, -0.712956, -0.499164,   -0.373928,
+                          -0.701954, -0.0136853, 0.712091,     0.24377,
                           0,           0,           0,           1 ]
 
-    left_lidar_to_imu: [ -0.515105, -0.702383, -0.491249, -0.368343,
-                         0.487008, -0.711468,  0.506593,  0.395882,
-                         -0.70533, 0.0217062,  0.708547,  0.24095,
+    left_lidar_to_imu: [ -0.516377, -0.702254, -0.490096, -0.264623,
+                         0.491997, -0.711704, 0.501414,  0.431973,
+                         -0.700923, 0.0177927, 0.713015,  0.24043,
                          0,         0,         0,         1 ]
 
-    extrinT_Gnss2Lidar: [ 0, 0, 1.93 ]
-    extrinR_Gnss2Lidar: [ 1, 0, 0,
+    extrinT_Gnss2IMU: [ -0.25, 0, 0.0 ]
+    extrinR_Gnss2IMU: [ 1, 0, 0,
                           0, 1, 0,
                           0, 0, 1 ]
 
 publish:
     path_en:  true
     scan_publish_en:  true       # false: close all the point cloud output
-    dense_publish_en: true       # false: low down the points number in a global-frame point clouds scan.
+    dense_publish_en: false       # false: low down the points number in a global-frame point clouds scan.
     scan_bodyframe_pub_en: false  # true: output the point cloud scans in IMU-body-frame
 
 pcd_save:

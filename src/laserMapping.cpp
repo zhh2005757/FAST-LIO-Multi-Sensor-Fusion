@@ -65,7 +65,7 @@
 #include "sensor_msgs/NavSatFix.h"
 
 #define INIT_TIME           (0.1)
-#define LASER_POINT_COV     (0.001)
+#define LASER_POINT_COV     (50)
 #define MAXN                (720000)
 #define PUBFRAME_PERIOD     (20)
 
@@ -163,18 +163,20 @@ shared_ptr<ImuProcess> p_imu(new ImuProcess());
 double last_timestamp_gnss = -1.0 ;
 deque<nav_msgs::Odometry::Ptr> gnss_buffer;
 geometry_msgs::PoseStamped msg_gnss_pose;
+geometry_msgs::Vector3 msg_gnss_cov;
 string gnss_topic ;
+ros::Publisher pubGnssCov;
 
-M3D Gnss_R_wrt_Lidar(Eye3d) ;         // gnss  与 imu 的外参
-V3D Gnss_T_wrt_Lidar(Zero3d);
+M3D Gnss_R_wrt_IMU(Eye3d) ;         // gnss  与 imu 的外参
+V3D Gnss_T_wrt_IMU(Zero3d);
 M3D GNSS_Heading(Eye3d);
 bool gnss_inited = false ;                        //  是否完成gnss初始化
 shared_ptr<GnssProcess> p_gnss(new GnssProcess());
 GnssProcess gnss_data;
 ros::Publisher pubGnssPath ;
 nav_msgs::Path gps_path ;
-vector<double>       extrinT_Gnss2Lidar(3, 0.0);
-vector<double>       extrinR_Gnss2Lidar(9, 0.0);
+vector<double>       extrinT_Gnss2IMU(3, 0.0);
+vector<double>       extrinR_Gnss2IMU(9, 0.0);
 
 using PointXYZIRT = velodyne_ros::Point;
 
@@ -617,9 +619,9 @@ void gnss_cbk(const sensor_msgs::NavSatFixConstPtr& msg_in)
         gnss_pose(1,3) = gnss_data.local_N ;                 //     北
         gnss_pose(2,3) = gnss_data.local_U ;                 //    天
 
-        Eigen::Isometry3d gnss_to_lidar(Gnss_R_wrt_Lidar) ;
-        gnss_to_lidar.pretranslate(Gnss_T_wrt_Lidar);
-        gnss_pose  =  gnss_to_lidar  *  gnss_pose ;                    //  gnss 转到 lidar 系下, （当前Gnss_T_wrt_Lidar，只是一个大致的初值）
+        Eigen::Isometry3d trans(Gnss_R_wrt_IMU) ;
+        trans.pretranslate(Gnss_T_wrt_IMU);
+        gnss_pose  =  trans.inverse()  *  gnss_pose;  // convert gnss_pose to IMU frame
 
         nav_msgs::Odometry::Ptr gnss_data_enu(new nav_msgs::Odometry());
         // add new message to buffer:
@@ -651,6 +653,12 @@ void gnss_cbk(const sensor_msgs::NavSatFixConstPtr& msg_in)
         msg_gnss_pose.pose.position.z = gnss_vec.z() ;
 
         gps_path.poses.push_back(msg_gnss_pose);
+
+        msg_gnss_cov.x = gnss_data.pose_cov[0];
+        msg_gnss_cov.y = gnss_data.pose_cov[1];
+        msg_gnss_cov.z = gnss_data.pose_cov[2];
+
+        pubGnssCov.publish(msg_gnss_cov);
     }
 
 
@@ -996,16 +1004,16 @@ void h_share_model(state_ikfom &s, esekfom::dyn_share_datastruct<double> &ekfom_
         M3D crossmat;
         crossmat << SKEW_SYM_MATRX(gnss_pos);
         auto P = kf.get_P();
-//        cout << "roll std " << sqrt(P(30,30)) << " pitch std" << sqrt(P(31, 31)) << " yaw std " << sqrt(P(32, 32)) << endl;
+        cout << "roll std " << sqrt(P(30,30)) << " pitch std" << sqrt(P(31, 31)) << " yaw std " << sqrt(P(32, 32)) << endl;
         // if yaw std converges do not estimate R_G_I
-        if (sqrt(P(32, 32)) > 5e-5)
+        if (sqrt(P(32, 32)) > 1e-4)
         {
             ekfom_data.h_x.block<3, 3>(0, 30) = -(s.offset_R_G_I * crossmat); // d_dR_G_I
             ROS_WARN("Estimate R_G_I !");
         }
         // covariance
-        ekfom_data.R(0, 0) = Measures.gnss.front()->pose.covariance[0];
-        ekfom_data.R(1, 1) = Measures.gnss.front()->pose.covariance[7];
+        ekfom_data.R(0, 0) = 0.01 * Measures.gnss.front()->pose.covariance[0];
+        ekfom_data.R(1, 1) = 0.01 * Measures.gnss.front()->pose.covariance[7];
         ekfom_data.R(2, 2) = Measures.gnss.front()->pose.covariance[14];
         return;
     }
@@ -1260,8 +1268,8 @@ int main(int argc, char** argv)
     nh.param<string>("common/gnss_topic", gnss_topic,"/gps/fix");
     nh.param<bool>("common/use_gnss", USE_GNSS, false);
     cout << "use_gnss " << int(USE_GNSS) << endl;
-    nh.param<vector<double>>("mapping/extrinR_Gnss2Lidar", extrinR_Gnss2Lidar, vector<double>());
-    nh.param<vector<double>>("mapping/extrinT_Gnss2Lidar", extrinT_Gnss2Lidar, vector<double>());
+    nh.param<vector<double>>("mapping/extrinR_Gnss2IMU", extrinR_Gnss2IMU, vector<double>());
+    nh.param<vector<double>>("mapping/extrinT_Gnss2IMU", extrinT_Gnss2IMU, vector<double>());
     
     path.header.stamp    = ros::Time::now();
     path.header.frame_id ="camera_init";
@@ -1300,8 +1308,8 @@ int main(int argc, char** argv)
     p_imu->set_wheel_scale(wheel_s);
 
     //设置gnss外参数
-    Gnss_T_wrt_Lidar<<VEC_FROM_ARRAY(extrinT_Gnss2Lidar);
-    Gnss_R_wrt_Lidar<<MAT_FROM_ARRAY(extrinR_Gnss2Lidar);
+    Gnss_T_wrt_IMU<<VEC_FROM_ARRAY(extrinT_Gnss2IMU);
+    Gnss_R_wrt_IMU<<MAT_FROM_ARRAY(extrinR_Gnss2IMU);
 
     double epsi[33] = {0.001};
     fill(epsi, epsi + 33, 0.001);
@@ -1347,6 +1355,7 @@ int main(int argc, char** argv)
     ros::Publisher pubPath          = nh.advertise<nav_msgs::Path> 
             ("/path", 100000);
     ros::Publisher pubGnssPath = nh.advertise<nav_msgs::Path>("/gnss_path", 100000);
+    pubGnssCov = nh.advertise<geometry_msgs::Vector3>("/gnss_cov", 100000);
 //------------------------------------------------------------------------------------------------------
     signal(SIGINT, SigHandle);
     ros::Rate rate(5000);
@@ -1496,7 +1505,7 @@ int main(int argc, char** argv)
                 s_plot9[time_log_counter] = aver_time_consu;
                 s_plot10[time_log_counter] = add_point_size;
                 time_log_counter ++;
-                printf("[ mapping ]: time: IMU + Map + Input Downsample: %0.6f ave match: %0.6f ave solve: %0.6f  ave ICP: %0.6f  map incre: %0.6f ave total: %0.6f icp: %0.6f construct H: %0.6f \n",t1-t0,aver_time_match,aver_time_solve,t3-t1,t5-t3,aver_time_consu,aver_time_icp, aver_time_const_H_time);
+//                printf("[ mapping ]: time: IMU + Map + Input Downsample: %0.6f ave match: %0.6f ave solve: %0.6f  ave ICP: %0.6f  map incre: %0.6f ave total: %0.6f icp: %0.6f construct H: %0.6f \n",t1-t0,aver_time_match,aver_time_solve,t3-t1,t5-t3,aver_time_consu,aver_time_icp, aver_time_const_H_time);
                 ext_euler = SO3ToEuler(state_point.offset_R_L_I);
                 fout_out << setw(20) << Measures.lidar_beg_time - first_lidar_time << " " << euler_cur.transpose() << " " << state_point.pos.transpose()<< " " << ext_euler.transpose() << " "<<state_point.offset_T_L_I.transpose()<<" "<< state_point.vel.transpose() \
                 <<" "<<state_point.bg.transpose()<<" "<<state_point.ba.transpose()<<" "<<state_point.grav<<" "<<feats_undistort->points.size()<<endl;
